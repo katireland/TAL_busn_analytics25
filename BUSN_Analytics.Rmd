@@ -1,0 +1,236 @@
+---
+title: "Ivester Institute for Business Analytics and Insights: Intro to R for BUSN Analytics"
+author: "Katherine A Ireland"
+output: html_document
+date: "2025-09-10"
+---
+
+
+# 0) Background: Why use R for BUSN Analytics?
+
+- Works well for the full data science pipeline:
+getting data, data wrangling, to analysis and visualization
+- Consistent grammar → fast, repeatable visuals for reports/decks
+- Clear mapping from business questions → visual encodings
+- Works across disciplines + data 
+
+
+**Quick references**
+
+- [R for Data Science (R4DS), Chapter on Data Visualization](https://r4ds.had.co.nz/data-visualisation.html)  
+- [dplyr documentation](https://cran.r-project.org/web/packages/dplyr/vignettes/dplyr.html)
+- [ggplot2 documentation](https://ggplot2.tidyverse.org/)  
+- [Posit (RStudio) ggplot2 Cheatsheet](https://posit.co/resources/cheatsheets/)  
+
+```{r setup, include=FALSE}
+# Knit-safe: set CRAN mirror & clean output
+options(repos = c(CRAN = "https://cloud.r-project.org"))
+knitr::opts_chunk$set(message = FALSE, warning = FALSE)
+
+# Install packages if don't already have
+#install.packages(c("tidyverse", "gapminder"))
+#remember: we must always "read in" the packages using the library function even after installing
+library(tidyverse)   # dplyr, ggplot2, readr, tidyr, etc.
+library(gapminder) #the data we are using today
+
+# Data
+data("gapminder")
+gap <- gapminder
+
+glimpse(gap)
+```
+
+### the Gapminder dataset
+    
+- [The Gapminder dataset](https://www.gapminder.org/) comes from the Gapminder Foundation, a non-profit started by Hans Rosling.    
+
+- It was created to make global development statistics accessible, visual, and easy to understand.    
+
+- The data combines information from sources like the United Nations, World Bank, and other international agencies.     
+
+- It’s widely used in teaching because it’s clean, tidy, and covers long-term trends in health and wealth across the world.    
+
+# 1) dplyr verbs: the powerhouse behind data processing and analytics
+    
+Next, we will go through several useful dplyr verbs one-by-one on our gapminder dataset.
+    
+Dplyr verbs operate on different aspects of your dataset: on rows (filter, slice, arrange), on columns (select, rename, mutate, relocate), on groups of rows (summarise)
+ 
+#### filter() → Keep only certain rows.      
+
+**What it does:**      
+Think of `filter()` as a row *sieve*. You provide a condition, and only rows that meet the condition stay in the dataset.      
+     
+**Example:** Get a specific row value. 
+```{r}
+# Example: filtering by two row values
+gap %>%
+  filter(continent == "Asia", year == 2007)
+
+```
+      
+#### 2. `select()` → Choose specific columns.    
+
+**What it does:**      
+Imagine a spreadsheet with many columns. `select()` lets you pick just the variables you care about (and reorder them if you want).     
+    
+
+**Example:** Keep only five columns.
+```{r}
+gap %>%
+  select(country, continent, year, lifeExp, gdpPercap)
+
+```
+     
+     
+#### 3. `arrange()` → Reorder rows.   
+**What it does:**      
+
+Think of `arrange()` as sorting your table. By default it sorts ascending (smallest → largest), but you can use `desc()` for descending order.      
+
+
+**Example:** sorting by population (ascending)     
+    
+
+```{r}
+gap %>%
+  arrange(pop) %>%    # sort ascending by population
+  head(10)
+
+# Next: get highest life expectancy (2007) using filter in combo w arrange
+gap %>%
+  filter(year == 2007) %>%
+  arrange(desc(lifeExp)) %>%
+  head(10)
+```
+
+
+
+#### 4. `mutate` create new columns.   
+
+**What it does:**   adds new variables (columns) or transforms existing ones.   
+- You can base the new variable on any calculation, combination, or condition from existing columns.   
+
+**Example:** compare gdp across countries
+```{r}
+#first get gdp from gdp per capita
+gap2<- gap %>%mutate(gdp = gdpPercap * pop)   # total GDP)
+#View(gap2)
+
+
+#scale in millions
+gap2<- gap %>%
+  mutate(gdp_million = (gdpPercap * pop) / 1e6) 
+#add in additional filtering
+Arg_1982 <- gap2 %>% filter(country == "Argentina", year == 1982) %>%
+  select(country, year, gdp_million)
+
+##your turn! Let's try adding in this filter with mutate (filter(year == 2007, country %in% c("China", "India", "United States", "Luxembourg"))) to compare gdp results across these countries
+
+##another mutate example: what's going on here?
+gap %>%
+  mutate(pop_millions = pop / 1e6) %>%
+  select(country, year, pop, pop_millions) %>%
+  head(5)
+
+##and here?
+gap %>%
+  group_by(country) %>%
+  mutate(is_growing = pop > lag(pop)) %>%
+  select(country, year, pop, is_growing) %>%
+  filter(country == "China") %>%
+  head(10)
+```
+#### group_by and summarise.   
+**What it does:**  Summarises data into groups by calculating values like mean, sum, count, etc.
+
+**Example:** compare gdp across countries.   
+
+- First use group_by() to define categories.
+- use summarise() to collapse each group into one row with summary statistics.
+```{r}
+# Average life expectancy by continent in 2007
+gap %>%
+  filter(year == 2007) %>%
+  group_by(continent) %>%
+  summarise(avg_lifeExp = mean(lifeExp), .groups = "drop") %>%
+  arrange(desc(avg_lifeExp))
+
+```
+
+#### count
+**What it does:**  generates quick frequencies of data
+- Quickly counts the number of rows in each category.    
+
+**Example:** number of rows per continent (sorted).
+```{r}
+
+gap %>% count(continent, sort = TRUE)
+```
+
+#### slice_max→ Get the “top N” rows
+
+**What it does:** Selects the highest (or lowest - with slice_min()) values within a column.
+
+**Example:** top 5 countries by GDP per capita in 2007
+```{r}
+# Top 5 countries by GDP per capita in 2007
+gap %>%
+  filter(year == 2007) %>%
+  slice_max(gdpPercap, n = 5, with_ties = FALSE) %>%
+  select(country, continent, gdpPercap)
+```
+
+### now in groups of two or three answer this question using our dplyr verbs
+what top 2 countries per continent had the highest gdp per capita in 1982 and in 2007?
+```{r}
+top2 <- gap %>% filter(year == 1982) %>%
+  group_by(continent) %>%
+  slice_max(order_by = gdpPercap, n = 2) %>%
+  select(country, gdpPercap) 
+#View(top2)
+```
+
+## Visualization w ggplot
+```{r}
+# Bar plot
+top2 %>%
+  ggplot(aes(x = reorder(country, gdpPercap), y = gdpPercap, fill = continent)) +
+  geom_col(show.legend = FALSE) +
+  coord_flip() +
+  labs(
+    title = "Top 2 Countries per Continent by GDP per Capita (1982)",
+    x = NULL,
+    y = "GDP per Capita (USD)"
+  )
+#compare distribution of life expectancies across continents in 1982
+gap %>%
+  filter(year == 1982) %>%
+  ggplot(aes(continent, lifeExp)) +
+  geom_boxplot()
+
+#correlation: visualize the relationship btw wealth and life expectancy
+gap %>%
+  filter(year == 2007) %>%
+  summarise(cor(gdpPercap, lifeExp))
+
+gap %>%
+  filter(year == 2007) %>%
+  ggplot(aes(x = gdpPercap, y = lifeExp, color = continent, size = pop)) +
+  geom_point(alpha = 0.7) +
+  scale_x_log10() + #applies log base so easier to see lower income
+  labs(
+    title = "GDP per Capita vs Life Expectancy (1982)",
+    x = "GDP per Capita (log scale, USD)",
+    y = "Life Expectancy (years)"
+  ) +
+  guides(size = "none")
+
+#trends over time
+gap %>%
+  group_by(continent, year) %>%
+  summarise(avg_lifeExp = mean(lifeExp), .groups = "drop") %>%
+  ggplot(aes(year, avg_lifeExp, color = continent)) +
+  geom_line()
+```
+
